@@ -355,8 +355,11 @@ function ledgeJumpUp(playerPed, heightLevel)
     local animTime = doAnimation(playerPed, ParkourAnimations.ledge.ledgeJumpUp)
     Wait(animTime * 1000)
 
-    local offset = 1.435 - ((HeightLevels.Max - heightLevel) * 1.5)
-    print('offset: ' .. tostring(offset))
+    local offset = 1.435 - ((HeightLevels.Max - heightLevel) * 0.8)
+    -- print('HeightLevels.Max: ' .. tostring(HeightLevels.Max))
+    -- print('heightLevel: ' .. tostring(heightLevel))
+    -- print('HeightLevels.Max - heightLevel: ' .. tostring(HeightLevels.Max - heightLevel))
+    -- print('offset: ' .. tostring(offset))
 
     SetEntityCoords(playerPed, x, y, z + offset, true, false, false, false)
 
@@ -441,4 +444,8 @@ RegisterCommand('+parkour', function()
     unloadParkourAnimations()
 
     isDoingParkour = false
+end, false)
+
+RegisterCommand('tpParkour', function(_, _, _)
+    SetEntityCoords(PlayerPedId(), -1130.0, -1020.0, 2.5, true, false, false, false)
 end, false)
