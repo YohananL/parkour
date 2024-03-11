@@ -193,7 +193,7 @@ function turnHeading(playerPed, playerCoords, targetCoords)
     for _ = 1, frames do
         currentHeading = currentHeading + diff
         SetEntityHeading(playerPed, currentHeading)
-        Wait(1)
+        Wait(0)
     end
 end
 
@@ -208,24 +208,17 @@ end
 
 function bigJump(playerPed, playerCoords, endCoords)
     FreezeEntityPosition(playerPed, true)
-    local animTime = doAnimation(playerPed, ParkourAnimations.jump.bigJump, 0.15)
-    local targetTime = animTime * 700
+    doAnimation(playerPed, ParkourAnimations.jump.bigJump, 0.13)
 
     local frames = 360
 
-    local startFrameMultiplier = 0.1
-    local jumpFrameMultiplier = 0.5
-    local endFrameMultiplier = 0.4
+    local startFrameSegment = 0.1
+    local jumpFrameSegment = 0.5
+    local endFrameSegment = 0.4
 
-    local jumpSpeed = 1.5
-    local endSpeed = endFrameMultiplier /
-        ((jumpFrameMultiplier + endFrameMultiplier) - (jumpFrameMultiplier * jumpSpeed))
-    print(endSpeed)
-
-    local startFrames = frames * startFrameMultiplier
-    local jumpFrames = frames * jumpFrameMultiplier
-    local endFrames = frames * endFrameMultiplier
-    local waitTime = targetTime / frames
+    local startFrames = frames * startFrameSegment
+    local jumpFrames = frames * jumpFrameSegment
+    local endFrames = frames * endFrameSegment
 
     local originX, originY, originZ = table.unpack(playerCoords)
     local currentX, currentY, currentZ = table.unpack(playerCoords)
@@ -234,27 +227,21 @@ function bigJump(playerPed, playerCoords, endCoords)
     local diffY = targetY - originY
     local diffZ = targetZ - originZ
 
+    local speedX = diffX / frames
+    local speedY = diffY / frames
+    -- local speedZ = diffZ / frames
+    local speedZ = (diffZ / frames) + (1.0 / frames)
+    currentZ = currentZ - 1.0
+
     local totalX = 0.0
     local totalY = 0.0
     local totalZ = 0.0
     print(string.format('target distance: %.2f, %.2f, %.2f', diffX, diffY, diffZ))
 
-    -- local dX = diffX / frames
-    -- local dY = diffY / frames
-    -- local dZ = diffZ / frames
-    -- for _ = 1, frames do
-    --     pX = pX + dX
-    --     pY = pY + dY
-    --     pZ = pZ + dZ
-
-    --     SetEntityCoords(playerPed, pX, pY, pZ, true, true, false, false)
-    --     Wait(waitTime)
-    -- end
-
     -- Start
-    local incrementX = (diffX / frames)
-    local incrementY = (diffY / frames)
-    local incrementZ = (diffZ / frames)
+    local incrementX = speedX
+    local incrementY = speedY
+    local incrementZ = speedZ
     for _ = 1, startFrames do
         currentX = currentX + incrementX
         currentY = currentY + incrementY
@@ -265,13 +252,14 @@ function bigJump(playerPed, playerCoords, endCoords)
         totalZ = totalZ + incrementZ
 
         SetEntityCoords(playerPed, currentX, currentY, currentZ, true, true, false, false)
-        Wait(waitTime)
+        Wait(0)
     end
 
     -- Jumping
-    incrementX = (diffX / frames) * jumpSpeed
-    incrementY = (diffY / frames) * jumpSpeed
-    incrementZ = (diffZ / frames) * jumpSpeed
+    local jumpSpeed = 1.7
+    incrementX = speedX * jumpSpeed
+    incrementY = speedY * jumpSpeed
+    incrementZ = speedZ * jumpSpeed
     for _ = 1, jumpFrames do
         currentX = currentX + incrementX
         currentY = currentY + incrementY
@@ -282,14 +270,25 @@ function bigJump(playerPed, playerCoords, endCoords)
         totalZ = totalZ + incrementZ
 
         SetEntityCoords(playerPed, currentX, currentY, currentZ, true, true, false, false)
-        Wait(waitTime)
+        Wait(0)
     end
 
     -- End
-    incrementX = (diffX / frames) / endSpeed
-    incrementY = (diffY / frames) / endSpeed
-    incrementZ = (diffZ / frames) / endSpeed
-    for _ = 1, endFrames do
+    local endSpeedMultiplier = endFrameSegment /
+        ((jumpFrameSegment + endFrameSegment) - (jumpFrameSegment * jumpSpeed))
+    print(endSpeedMultiplier)
+
+    local endSpeedX = speedX / endSpeedMultiplier
+    local endSpeedY = speedY / endSpeedMultiplier
+    local endSpeedZ = speedZ / endSpeedMultiplier
+
+    local endFramePercent = 0.1
+
+    incrementX = endFrames * endSpeedX / (endFrames * endFramePercent)
+    incrementY = endFrames * endSpeedY / (endFrames * endFramePercent)
+    incrementZ = endFrames * endSpeedZ / (endFrames * endFramePercent)
+
+    for _ = 1, endFrames * endFramePercent do
         currentX = currentX + incrementX
         currentY = currentY + incrementY
         currentZ = currentZ + incrementZ
@@ -299,7 +298,7 @@ function bigJump(playerPed, playerCoords, endCoords)
         totalZ = totalZ + incrementZ
 
         SetEntityCoords(playerPed, currentX, currentY, currentZ, true, true, false, false)
-        Wait(waitTime)
+        Wait(0)
     end
 
     print(string.format('actual distance: %.2f, %.2f, %.2f', totalX, totalY, totalZ))
