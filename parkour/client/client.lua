@@ -160,21 +160,169 @@ function enableCollision(playerPed)
     SetEntityHasGravity(playerPed, true)
 end
 
-function doAnimation(playerPed, animation)
+-- Retrieved from: https://stackoverflow.com/q/72402681
+function turnHeading(playerPed, playerCoords, targetCoords)
+    local dX = playerCoords.x - targetCoords.x;
+    local dY = playerCoords.y - targetCoords.y;
+    local yaw = math.atan2(dY, dX)
+    yaw = (math.deg(yaw) + 180) % 360 - 90
+    if yaw < 0 then
+        yaw = yaw + 360
+    end
+
+    local frames = 50
+    local currentHeading = GetEntityHeading(playerPed)
+    local diff = yaw - currentHeading
+    if currentHeading < yaw then
+        if yaw - currentHeading < (360 + currentHeading) - yaw then
+            diff = yaw - currentHeading
+        else
+            print('2')
+            diff = (360 + currentHeading) - yaw
+            diff = -diff
+        end
+    else
+        if currentHeading - yaw < (360 + yaw) - currentHeading then
+            diff = currentHeading - yaw
+            diff = -diff
+        else
+            diff = (360 + yaw) - currentHeading
+        end
+    end
+    diff = diff / frames
+
+    for _ = 1, frames do
+        currentHeading = currentHeading + diff
+        SetEntityHeading(playerPed, currentHeading)
+        Wait(1)
+    end
+end
+
+function doAnimation(playerPed, animation, startTime)
+    startTime = startTime or 0.0
+
     TaskPlayAnim(playerPed, animation.dictionary, animation.name,
-        8.0, 8.0, -1, AnimationFlags.ANIM_FLAG_NORMAL, 0.0, false, false, false)
+        8.0, 8.0, -1, AnimationFlags.ANIM_FLAG_NORMAL, startTime, false, false, false)
 
     return GetAnimDuration(animation.dictionary, animation.name)
 end
 
-function bigJump(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.jump.bigJump)
-    Wait(animTime * 250)
-    disableCollision(playerPed)
-    Wait(animTime * 200)
-    enableCollision(playerPed)
-    Wait(animTime * 550)
+function bigJump(playerPed, playerCoords, endCoords)
+    FreezeEntityPosition(playerPed, true)
+    local animTime = doAnimation(playerPed, ParkourAnimations.jump.bigJump, 0.2)
+    local targetTime = animTime * 700
+
+    local frames = 360
+    local startFrames = frames * 0.1
+    local jumpFrames = frames * 0.3
+    local endFrames = frames * 0.6
+    local waitTime = targetTime / frames
+
+    local originX, originY, originZ = table.unpack(playerCoords)
+    local currentX, currentY, currentZ = table.unpack(playerCoords)
+    local targetX, targetY, targetZ = table.unpack(endCoords)
+    local diffX = targetX - originX
+    local diffY = targetY - originY
+    local diffZ = targetZ - originZ
+
+    local totalX = 0.0
+    local totalY = 0.0
+    local totalZ = 0.0
+    print(string.format('target distance: %.2f, %.2f, %.2f', diffX, diffY, diffZ))
+
+    -- local dX = diffX / frames
+    -- local dY = diffY / frames
+    -- local dZ = diffZ / frames
+    -- for _ = 1, frames do
+    --     pX = pX + dX
+    --     pY = pY + dY
+    --     pZ = pZ + dZ
+
+    --     SetEntityCoords(playerPed, pX, pY, pZ, true, true, false, false)
+    --     Wait(waitTime)
+    -- end
+
+    -- Start
+    local incrementX = (diffX / frames)
+    local incrementY = (diffY / frames)
+    local incrementZ = (diffZ / frames)
+    print('start')
+    print(incrementX)
+    print(incrementY)
+    print(incrementZ)
+    print()
+    for _ = 1, startFrames do
+        currentX = currentX + incrementX
+        currentY = currentY + incrementY
+        currentZ = currentZ + incrementZ
+
+        totalX = totalX + incrementX
+        totalY = totalY + incrementY
+        totalZ = totalZ + incrementZ
+
+        SetEntityCoords(playerPed, currentX, currentY, currentZ, true, true, false, false)
+        Wait(waitTime)
+    end
+
+    -- Jumping
+    incrementX = (diffX / frames) * 2
+    incrementY = (diffY / frames) * 2
+    incrementZ = (diffZ / frames) * 2
+    print('jump')
+    print(incrementX)
+    print(incrementY)
+    print(incrementZ)
+    print()
+    for _ = 1, jumpFrames do
+        currentX = currentX + incrementX
+        currentY = currentY + incrementY
+        currentZ = currentZ + incrementZ
+
+        totalX = totalX + incrementX
+        totalY = totalY + incrementY
+        totalZ = totalZ + incrementZ
+
+        SetEntityCoords(playerPed, currentX, currentY, currentZ, true, true, false, false)
+        Wait(waitTime)
+    end
+
+    -- End
+    incrementX = (diffX / frames) * 0.5
+    incrementY = (diffY / frames) * 0.5
+    incrementZ = (diffZ / frames) * 0.5
+    print('end')
+    print(incrementX)
+    print(incrementY)
+    print(incrementZ)
+    print()
+    for _ = 1, endFrames do
+        currentX = currentX + incrementX
+        currentY = currentY + incrementY
+        currentZ = currentZ + incrementZ
+
+        totalX = totalX + incrementX
+        totalY = totalY + incrementY
+        totalZ = totalZ + incrementZ
+
+        SetEntityCoords(playerPed, currentX, currentY, currentZ, true, true, false, false)
+        Wait(waitTime)
+    end
+
+    print(string.format('actual distance: %.2f, %.2f, %.2f', totalX, totalY, totalZ))
+
+    ClearPedTasks(playerPed)
+    FreezeEntityPosition(playerPed, false)
 end
+
+-- function bigJump(playerPed)
+--     local animTime = doAnimation(playerPed, ParkourAnimations.jump.bigJump, 0.2)
+--     Wait(animTime * 50)
+--     disableCollision(playerPed)
+--     Wait(animTime * 200)
+--     enableCollision(playerPed)
+--     Wait(animTime * 450)
+--     ClearPedTasks(playerPed)
+-- end
 
 function frontTwistFlip(playerPed)
     local animTime = doAnimation(playerPed, ParkourAnimations.jump.frontTwistFlip)
@@ -480,6 +628,13 @@ RegisterCommand('+parkour', function()
                 wallFlip(playerPed)
             end
         end
+    else
+        local playerCoords = GetEntityCoords(playerPed)
+        local coords = exports.qbUtil:raycast()
+        turnHeading(playerPed, playerCoords, coords)
+
+        -- frontTwistFlip(playerPed)
+        bigJump(playerPed, playerCoords, coords)
     end
 
     -- Unload all parkour animations
