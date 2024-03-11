@@ -5,6 +5,7 @@
 local AnimationFlags =
 {
     ANIM_FLAG_NORMAL = 0,
+    ANIM_FLAG_ENABLE_PLAYER_CONTROL = 32,
 };
 
 local ParkourDictionaries = {
@@ -29,6 +30,7 @@ local ParkourAnimations = {
         rollVault = { dictionary = ParkourDictionaries.two, name = 'roll_a_vault', },
         safetyVault = { dictionary = ParkourDictionaries.two, name = 'safety_l_vault', },
         slideVault = { dictionary = ParkourDictionaries.two, name = 'slide_r_vault', },
+        diveRollLeft = { dictionary = ParkourDictionaries.two, name = 'diveroll_l', },
     },
     slide = {
         slideNormal = { dictionary = ParkourDictionaries.one, name = 'slide', },
@@ -54,11 +56,11 @@ local HeightLevels = {
     Min    = -0.6,
     Low    = -0.2,
     Medium = 0.4,
-    High   = 1.8,
-    Max    = 2.5,
+    High   = 2.0,
+    Max    = 2.7,
 }
 
-local ForwardDistance = 1.0
+local ForwardDistance = 1.5
 
 --- ============================
 ---          Functions
@@ -82,6 +84,7 @@ function GetEntInFrontOfPlayer(Ped)
         if hit == 1 then
             if not firstHit then
                 firstHit = heightIndex
+                lastHit = heightIndex
             else
                 lastHit = heightIndex
             end
@@ -99,7 +102,7 @@ function GetEntInFrontOfPlayer(Ped)
     return firstHit, lastHit
 
     -- while true do
-    --     local heightIndex = 1.7
+    --     local heightIndex = HeightLevels.Low
 
     --     local CoA = GetEntityCoords(Ped, true)
     --     local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, ForwardDistance, heightIndex)
@@ -179,8 +182,20 @@ function frontTwistFlip(playerPed)
     disableCollision(playerPed)
     Wait(animTime * 200)
     enableCollision(playerPed)
-    Wait(animTime * 400)
+    Wait(animTime * 225)
     ClearPedTasks(playerPed)
+
+    if GetEntityHeightAboveGround(playerPed) > 1.5 then
+        while GetEntityHeightAboveGround(playerPed) > 1.5 do
+            Wait(0)
+        end
+
+        TaskPlayAnim(playerPed, 'move_fall', 'land_roll',
+            8.0, 8.0, -1, AnimationFlags.ANIM_FLAG_ENABLE_PLAYER_CONTROL, 0.0, false, false, false)
+        animTime = GetAnimDuration('move_fall', 'land_roll')
+        Wait(animTime * 350)
+        ClearPedTasks(playerPed)
+    end
 end
 
 function balanceJump(playerPed)
@@ -256,19 +271,51 @@ function safetyVault(playerPed)
     Wait(animTime * 550)
 end
 
+function diveRollLeft(playerPed)
+    local animTime = doAnimation(playerPed, ParkourAnimations.vault.diveRollLeft)
+    Wait(animTime * 1000)
+end
+
 function reverseVault(playerPed, heightLevel)
     TaskClimb(playerPed, false)
     local difference = HeightLevels.High - heightLevel
     print('difference: ' .. tostring(difference))
     if difference <= 0.5 then
         print('here 1')
-        Wait(1200)
-    elseif difference <= 0.8 then
+        Wait(800)
+    elseif difference <= 0.6 then
         print('here 2')
-        Wait(700)
-    else
+        Wait(850)
+    elseif difference <= 0.7 then
         print('here 3')
-        Wait(450)
+        Wait(900)
+    elseif difference <= 0.8 then
+        print('here 4')
+        Wait(1200)
+    elseif difference <= 0.9 then
+        print('here 5')
+        Wait(1100)
+    elseif difference <= 1.0 then
+        print('here 6')
+        Wait(500)
+    elseif difference <= 1.1 then
+        print('here 7')
+        Wait(550)
+    elseif difference <= 1.2 then
+        print('here 8')
+        Wait(550)
+    elseif difference <= 1.3 then
+        print('here 9')
+        Wait(550)
+    elseif difference <= 1.4 then
+        print('here 10')
+        Wait(550)
+    elseif difference <= 1.5 then
+        print('here 11')
+        Wait(550)
+    else
+        print('here 12')
+        Wait(550)
     end
 
     ClearPedTasksImmediately(playerPed)
@@ -276,9 +323,9 @@ function reverseVault(playerPed, heightLevel)
     local animTime = doAnimation(playerPed, ParkourAnimations.vault.reverseVault)
     Wait(animTime * 100)
     disableCollision(playerPed)
-    Wait(animTime * 350)
+    Wait(animTime * 400)
     enableCollision(playerPed)
-    Wait(animTime * 550)
+    Wait(animTime * 500)
 end
 
 function slide(playerPed)
@@ -355,12 +402,7 @@ function ledgeJumpUp(playerPed, heightLevel)
     local animTime = doAnimation(playerPed, ParkourAnimations.ledge.ledgeJumpUp)
     Wait(animTime * 1000)
 
-    local offset = 1.435 - ((HeightLevels.Max - heightLevel) * 0.8)
-    -- print('HeightLevels.Max: ' .. tostring(HeightLevels.Max))
-    -- print('heightLevel: ' .. tostring(heightLevel))
-    -- print('HeightLevels.Max - heightLevel: ' .. tostring(HeightLevels.Max - heightLevel))
-    -- print('offset: ' .. tostring(offset))
-
+    local offset = 1.5 - ((HeightLevels.Max - heightLevel) * 0.8)
     SetEntityCoords(playerPed, x, y, z + offset, true, false, false, false)
 
     SetEntityHasGravity(playerPed, false)
@@ -425,7 +467,7 @@ RegisterCommand('+parkour', function()
     print('lastHit: ' .. tostring(lastHit))
 
     if firstHit ~= nil then
-        if firstHit > 0.0 and firstHit <= HeightLevels.Medium then
+        if firstHit > HeightLevels.Low and firstHit <= HeightLevels.Medium + 0.1 then
             slide(playerPed)
         elseif lastHit ~= null then
             if lastHit <= HeightLevels.Medium then
@@ -434,7 +476,7 @@ RegisterCommand('+parkour', function()
                 reverseVault(playerPed, lastHit)
             elseif lastHit < HeightLevels.Max then
                 ledgeJumpUp(playerPed, lastHit)
-            else
+            elseif firstHit < HeightLevels.Low and lastHit >= HeightLevels.Max then
                 wallFlip(playerPed)
             end
         end
@@ -448,4 +490,20 @@ end, false)
 
 RegisterCommand('tpParkour', function(_, _, _)
     SetEntityCoords(PlayerPedId(), -1130.0, -1020.0, 2.5, true, false, false, false)
+end, false)
+
+RegisterCommand('tpParkour2', function(_, _, _)
+    SetEntityCoords(PlayerPedId(), 240.0, -917.0, 26.5, true, false, false, false)
+end, false)
+
+RegisterCommand('tpParkour3', function(_, _, _)
+    SetEntityCoords(PlayerPedId(), 13.0, 3657.0, 40.5, true, false, false, false)
+end, false)
+
+RegisterCommand('tpParkour4', function(_, _, _)
+    SetEntityCoords(PlayerPedId(), 193.0, -1620.0, 30.0, true, false, false, false)
+end, false)
+
+RegisterCommand('tpParkour5', function(_, _, _)
+    SetEntityCoords(PlayerPedId(), -48.0, -39.0, 65.0, true, false, false, false)
 end, false)
