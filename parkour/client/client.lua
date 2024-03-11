@@ -177,7 +177,6 @@ function turnHeading(playerPed, playerCoords, targetCoords)
         if yaw - currentHeading < (360 + currentHeading) - yaw then
             diff = yaw - currentHeading
         else
-            print('2')
             diff = (360 + currentHeading) - yaw
             diff = -diff
         end
@@ -209,13 +208,23 @@ end
 
 function bigJump(playerPed, playerCoords, endCoords)
     FreezeEntityPosition(playerPed, true)
-    local animTime = doAnimation(playerPed, ParkourAnimations.jump.bigJump, 0.2)
+    local animTime = doAnimation(playerPed, ParkourAnimations.jump.bigJump, 0.15)
     local targetTime = animTime * 700
 
     local frames = 360
-    local startFrames = frames * 0.1
-    local jumpFrames = frames * 0.3
-    local endFrames = frames * 0.6
+
+    local startFrameMultiplier = 0.1
+    local jumpFrameMultiplier = 0.5
+    local endFrameMultiplier = 0.4
+
+    local jumpSpeed = 1.5
+    local endSpeed = endFrameMultiplier /
+        ((jumpFrameMultiplier + endFrameMultiplier) - (jumpFrameMultiplier * jumpSpeed))
+    print(endSpeed)
+
+    local startFrames = frames * startFrameMultiplier
+    local jumpFrames = frames * jumpFrameMultiplier
+    local endFrames = frames * endFrameMultiplier
     local waitTime = targetTime / frames
 
     local originX, originY, originZ = table.unpack(playerCoords)
@@ -246,11 +255,6 @@ function bigJump(playerPed, playerCoords, endCoords)
     local incrementX = (diffX / frames)
     local incrementY = (diffY / frames)
     local incrementZ = (diffZ / frames)
-    print('start')
-    print(incrementX)
-    print(incrementY)
-    print(incrementZ)
-    print()
     for _ = 1, startFrames do
         currentX = currentX + incrementX
         currentY = currentY + incrementY
@@ -265,14 +269,9 @@ function bigJump(playerPed, playerCoords, endCoords)
     end
 
     -- Jumping
-    incrementX = (diffX / frames) * 2
-    incrementY = (diffY / frames) * 2
-    incrementZ = (diffZ / frames) * 2
-    print('jump')
-    print(incrementX)
-    print(incrementY)
-    print(incrementZ)
-    print()
+    incrementX = (diffX / frames) * jumpSpeed
+    incrementY = (diffY / frames) * jumpSpeed
+    incrementZ = (diffZ / frames) * jumpSpeed
     for _ = 1, jumpFrames do
         currentX = currentX + incrementX
         currentY = currentY + incrementY
@@ -287,14 +286,9 @@ function bigJump(playerPed, playerCoords, endCoords)
     end
 
     -- End
-    incrementX = (diffX / frames) * 0.5
-    incrementY = (diffY / frames) * 0.5
-    incrementZ = (diffZ / frames) * 0.5
-    print('end')
-    print(incrementX)
-    print(incrementY)
-    print(incrementZ)
-    print()
+    incrementX = (diffX / frames) / endSpeed
+    incrementY = (diffY / frames) / endSpeed
+    incrementZ = (diffZ / frames) / endSpeed
     for _ = 1, endFrames do
         currentX = currentX + incrementX
         currentY = currentY + incrementY
@@ -310,8 +304,8 @@ function bigJump(playerPed, playerCoords, endCoords)
 
     print(string.format('actual distance: %.2f, %.2f, %.2f', totalX, totalY, totalZ))
 
-    ClearPedTasks(playerPed)
     FreezeEntityPosition(playerPed, false)
+    ClearPedTasks(playerPed)
 end
 
 -- function bigJump(playerPed)
