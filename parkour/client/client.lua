@@ -67,18 +67,17 @@ local ForwardDistance = 1.5
 --- ============================
 
 function GetEntInFrontOfPlayer(Ped)
-    color = { r = 0, g = 255, b = 0, a = 200 }
-
     local heightIndex = HeightLevels.Min
     local firstHit = nil
     local lastHit = nil
+    local coords = nil
     while heightIndex <= HeightLevels.Max + 0.01 do
         local CoA = GetEntityCoords(Ped, true)
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, ForwardDistance, heightIndex)
         local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoA.x, CoA.y, CoB.z,
             CoB.x, CoB.y, CoB.z, -1, Ped, 0) -- -1 = Everything
 
-        _, hit, _, _, _, _ =
+        local _, hit, hitCoords, _, _, _ =
             GetShapeTestResultIncludingMaterial(RayHandle)
 
         if hit == 1 then
@@ -88,6 +87,8 @@ function GetEntInFrontOfPlayer(Ped)
             else
                 lastHit = heightIndex
             end
+
+            coords = hitCoords
         else
             if firstHit and lastHit then
                 break
@@ -96,11 +97,12 @@ function GetEntInFrontOfPlayer(Ped)
 
         heightIndex = heightIndex + 0.1
 
-        Wait(1)
+        Wait(0)
     end
 
-    return firstHit, lastHit
+    return firstHit, lastHit, coords
 
+    -- color = { r = 0, g = 255, b = 0, a = 200 }
     -- while true do
     --     local heightIndex = HeightLevels.Low
 
@@ -123,8 +125,77 @@ function GetEntInFrontOfPlayer(Ped)
     --         return nil
     --     end
 
-    --     Wait(1)
+    --     Wait(0)
     -- end
+end
+
+local MaxForwardDistance = 5.0
+
+function GetCoordsAfterEntity(Ped, hitCoords)
+    local heightIndex = HeightLevels.Medium
+    local heightLine = 5
+    local currentDistance = ForwardDistance + 1.5
+    local forwardCoords = nil
+
+    while currentDistance <= MaxForwardDistance do
+        local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, currentDistance, heightIndex)
+        local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z,
+            CoB.x, CoB.y, CoB.z - heightLine, -1, Ped, 0) -- -1 = Everything
+
+        _, _, forwardCoords, _, _, _ =
+            GetShapeTestResultIncludingMaterial(RayHandle)
+
+        local zDiff = hitCoords.z - forwardCoords.z
+        print('zDiff: ' .. tostring(zDiff))
+
+        if zDiff > 0.1 and zDiff < 1.0 then
+            break;
+        elseif zDiff >= 1.0 then
+            return GetOffsetFromEntityInWorldCoords(Ped, 0.0, currentDistance, -1.5)
+        end
+
+        currentDistance = currentDistance + 1.0
+
+        Wait(0)
+    end
+
+    -- color = { r = 0, g = 255, b = 0, a = 200 }
+    -- while true do
+    --     local heightIndex = HeightLevels.Medium
+    --     local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, ForwardDistance + 2.0, heightIndex)
+    --     local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z,
+    --         CoB.x, CoB.y, CoB.z - heightLine, -1, Ped, 0) -- -1 = Everything
+
+    --     _, _, forwardCoords, _, _, _ =
+    --         GetShapeTestResultIncludingMaterial(RayHandle)
+
+    --     DrawLine(CoB.x, CoB.y, CoB.z, CoB.x, CoB.y, CoB.z - heightLine, color.r, color.g, color.b,
+    --         color.a)
+    --     DrawMarker(28, CoB.x, CoB.y, CoB.z, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.1, 0.1, 0.1, color.r,
+    --         color.g, color.b, color.a, false, true, 2, nil, nil, false, false)
+
+    --     if IsControlJustReleased(0, 38) then
+    --         print('forwardCoords: ' .. tostring(forwardCoords))
+    --         break
+    --     end
+
+    --     Wait(0)
+    -- end
+
+    return forwardCoords
+end
+
+function GetCoordsAfterPlayer(Ped)
+    local heightLine = 5
+    local currentDistance = ForwardDistance + 1.5
+    local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, currentDistance, HeightLevels.High)
+    local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z,
+        CoB.x, CoB.y, CoB.z - heightLine, -1, Ped, 0) -- -1 = Everything
+
+    local _, _, forwardCoords, _, _, _ =
+        GetShapeTestResultIncludingMaterial(RayHandle)
+
+    return forwardCoords
 end
 
 function requestAnimation(dictionary)
@@ -197,28 +268,13 @@ function turnHeading(playerPed, playerCoords, targetCoords)
     end
 end
 
-function doAnimation(playerPed, animation, startTime)
-    startTime = startTime or 0.0
-
-    TaskPlayAnim(playerPed, animation.dictionary, animation.name,
-        8.0, 8.0, -1, AnimationFlags.ANIM_FLAG_NORMAL, startTime, false, false, false)
-
-    return GetAnimDuration(animation.dictionary, animation.name)
-end
-
-function bigJump(playerPed, playerCoords, endCoords)
+function doAnim(animation, playerPed, playerCoords, endCoords, startOffset, framePercent)
+    SetEntityCollision(playerPed, false, true)
     FreezeEntityPosition(playerPed, true)
-    doAnimation(playerPed, ParkourAnimations.jump.bigJump, 0.13)
 
     local frames = 360
-
-    local startFrameSegment = 0.1
-    local jumpFrameSegment = 0.5
-    local endFrameSegment = 0.4
-
-    local startFrames = frames * startFrameSegment
-    local jumpFrames = frames * jumpFrameSegment
-    local endFrames = frames * endFrameSegment
+    TaskPlayAnim(playerPed, animation.dictionary, animation.name,
+        8.0, 8.0, -1, AnimationFlags.ANIM_FLAG_NORMAL, startOffset, false, false, false)
 
     local originX, originY, originZ = table.unpack(playerCoords)
     local currentX, currentY, currentZ = table.unpack(playerCoords)
@@ -229,93 +285,77 @@ function bigJump(playerPed, playerCoords, endCoords)
 
     local speedX = diffX / frames
     local speedY = diffY / frames
-    -- local speedZ = diffZ / frames
     local speedZ = (diffZ / frames) + (1.0 / frames)
     currentZ = currentZ - 1.0
 
-    local totalX = 0.0
-    local totalY = 0.0
-    local totalZ = 0.0
-    print(string.format('target distance: %.2f, %.2f, %.2f', diffX, diffY, diffZ))
+    local incrementX = speedX / framePercent
+    local incrementY = speedY / framePercent
+    local incrementZ = speedZ / framePercent
 
-    -- Start
-    local incrementX = speedX
-    local incrementY = speedY
-    local incrementZ = speedZ
-    for _ = 1, startFrames do
+    -- local totalX = 0.0
+    -- local totalY = 0.0
+    -- local totalZ = 0.0
+
+    for _ = 1, frames * framePercent do
         currentX = currentX + incrementX
         currentY = currentY + incrementY
         currentZ = currentZ + incrementZ
 
-        totalX = totalX + incrementX
-        totalY = totalY + incrementY
-        totalZ = totalZ + incrementZ
+        -- totalX = totalX + incrementX
+        -- totalY = totalY + incrementY
+        -- totalZ = totalZ + incrementZ
 
         SetEntityCoords(playerPed, currentX, currentY, currentZ, true, true, false, false)
         Wait(0)
     end
 
-    -- Jumping
-    local jumpSpeed = 1.7
-    incrementX = speedX * jumpSpeed
-    incrementY = speedY * jumpSpeed
-    incrementZ = speedZ * jumpSpeed
-    for _ = 1, jumpFrames do
-        currentX = currentX + incrementX
-        currentY = currentY + incrementY
-        currentZ = currentZ + incrementZ
-
-        totalX = totalX + incrementX
-        totalY = totalY + incrementY
-        totalZ = totalZ + incrementZ
-
-        SetEntityCoords(playerPed, currentX, currentY, currentZ, true, true, false, false)
-        Wait(0)
-    end
-
-    -- End
-    local endSpeedMultiplier = endFrameSegment /
-        ((jumpFrameSegment + endFrameSegment) - (jumpFrameSegment * jumpSpeed))
-    print(endSpeedMultiplier)
-
-    local endSpeedX = speedX / endSpeedMultiplier
-    local endSpeedY = speedY / endSpeedMultiplier
-    local endSpeedZ = speedZ / endSpeedMultiplier
-
-    local endFramePercent = 0.1
-
-    incrementX = endFrames * endSpeedX / (endFrames * endFramePercent)
-    incrementY = endFrames * endSpeedY / (endFrames * endFramePercent)
-    incrementZ = endFrames * endSpeedZ / (endFrames * endFramePercent)
-
-    for _ = 1, endFrames * endFramePercent do
-        currentX = currentX + incrementX
-        currentY = currentY + incrementY
-        currentZ = currentZ + incrementZ
-
-        totalX = totalX + incrementX
-        totalY = totalY + incrementY
-        totalZ = totalZ + incrementZ
-
-        SetEntityCoords(playerPed, currentX, currentY, currentZ, true, true, false, false)
-        Wait(0)
-    end
-
-    print(string.format('actual distance: %.2f, %.2f, %.2f', totalX, totalY, totalZ))
+    -- print(string.format('target distance: %.2f, %.2f, %.2f', diffX, diffY, diffZ))
+    -- print(string.format('actual distance: %.2f, %.2f, %.2f', totalX, totalY, totalZ))
 
     FreezeEntityPosition(playerPed, false)
+    SetEntityCollision(playerPed, true, true)
     ClearPedTasks(playerPed)
 end
 
--- function bigJump(playerPed)
---     local animTime = doAnimation(playerPed, ParkourAnimations.jump.bigJump, 0.2)
---     Wait(animTime * 50)
---     disableCollision(playerPed)
---     Wait(animTime * 200)
---     enableCollision(playerPed)
---     Wait(animTime * 450)
---     ClearPedTasks(playerPed)
--- end
+function bigJump2(playerPed, playerCoords, endCoords)
+    doAnim(ParkourAnimations.jump.bigJump, playerPed, playerCoords, endCoords, 0.20, 0.55)
+end
+
+function slide2(playerPed, playerCoords, endCoords)
+    doAnim(ParkourAnimations.slide.slideNormal, playerPed, playerCoords, endCoords, 0.0, 0.55)
+end
+
+function kashVault2(playerPed, playerCoords, endCoords)
+    doAnim(ParkourAnimations.vault.kashVault, playerPed, playerCoords, endCoords, 0.0, 0.45)
+end
+
+function reverseVault2(playerPed, endCoords)
+    TaskClimb(playerPed, false)
+    local playerCoords = GetEntityCoords(playerPed)
+    local counter = 0
+    repeat
+        playerCoords = GetEntityCoords(playerPed)
+
+        if playerCoords.z - endCoords.z > 0.9 then
+            break
+        end
+
+        counter = counter + 1
+        Wait(0)
+    until counter > 200
+    ClearPedTasksImmediately(playerPed)
+
+    doAnim(ParkourAnimations.vault.reverseVault, playerPed, GetEntityCoords(playerPed), endCoords, 0.0, 0.35)
+end
+
+function doAnimation(playerPed, animation, startTime)
+    startTime = startTime or 0.0
+
+    TaskPlayAnim(playerPed, animation.dictionary, animation.name,
+        8.0, 8.0, -1, AnimationFlags.ANIM_FLAG_NORMAL, startTime, false, false, false)
+
+    return GetAnimDuration(animation.dictionary, animation.name)
+end
 
 function frontTwistFlip(playerPed)
     local animTime = doAnimation(playerPed, ParkourAnimations.jump.frontTwistFlip)
@@ -339,43 +379,6 @@ function frontTwistFlip(playerPed)
     end
 end
 
-function balanceJump(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.jump.balanceJump)
-    Wait(animTime * 250)
-    disableCollision(playerPed)
-    Wait(animTime * 200)
-    enableCollision(playerPed)
-    Wait(animTime * 400)
-    ClearPedTasks(playerPed)
-end
-
-function jumpOverOne(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.vault.jumpOverOne)
-    Wait(animTime * 100)
-    disableCollision(playerPed)
-    Wait(animTime * 250)
-    enableCollision(playerPed)
-    Wait(animTime * 650)
-end
-
-function jumpOverTwo(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.vault.jumpOverTwo)
-    Wait(animTime * 100)
-    disableCollision(playerPed)
-    Wait(animTime * 250)
-    enableCollision(playerPed)
-    Wait(animTime * 650)
-end
-
-function jumpOverThree(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.vault.jumpOverThree)
-    Wait(animTime * 150)
-    disableCollision(playerPed)
-    Wait(animTime * 300)
-    enableCollision(playerPed)
-    Wait(animTime * 550)
-end
-
 function kashVault(playerPed)
     local animTime = doAnimation(playerPed, ParkourAnimations.vault.kashVault)
     Wait(animTime * 100)
@@ -383,38 +386,6 @@ function kashVault(playerPed)
     Wait(animTime * 350)
     enableCollision(playerPed)
     Wait(animTime * 550)
-end
-
-function monkeyVault(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.vault.monkeyVault)
-    Wait(animTime * 100)
-    disableCollision(playerPed)
-    Wait(animTime * 350)
-    enableCollision(playerPed)
-    Wait(animTime * 550)
-end
-
-function rollVault(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.vault.rollVault)
-    Wait(animTime * 100)
-    disableCollision(playerPed)
-    Wait(animTime * 350)
-    enableCollision(playerPed)
-    Wait(animTime * 550)
-end
-
-function safetyVault(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.vault.safetyVault)
-    Wait(animTime * 100)
-    disableCollision(playerPed)
-    Wait(animTime * 350)
-    enableCollision(playerPed)
-    Wait(animTime * 550)
-end
-
-function diveRollLeft(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.vault.diveRollLeft)
-    Wait(animTime * 1000)
 end
 
 function reverseVault(playerPed, heightLevel)
@@ -478,63 +449,9 @@ function slide(playerPed)
     Wait(animTime * 600)
 end
 
-function slideBack(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.slide.slideBack)
-    Wait(animTime * 50)
-    disableCollision(playerPed)
-    Wait(animTime * 300)
-    enableCollision(playerPed)
-    Wait(animTime * 650)
-end
-
-function slideUp(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.slide.slideUp)
-    Wait(animTime * 50)
-    disableCollision(playerPed)
-    Wait(animTime * 300)
-    enableCollision(playerPed)
-    Wait(animTime * 650)
-end
-
 function wallFlip(playerPed)
     local animTime = doAnimation(playerPed, ParkourAnimations.wall.wallFlip)
     Wait(animTime * 1000)
-end
-
-function wallRunLeft(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.wall.wallRunLeft)
-    Wait(animTime * 50)
-    disableCollision(playerPed)
-    Wait(animTime * 500)
-    enableCollision(playerPed)
-    Wait(animTime * 450)
-end
-
-function wallRunRight(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.wall.wallRunRight)
-    Wait(animTime * 50)
-    disableCollision(playerPed)
-    Wait(animTime * 500)
-    enableCollision(playerPed)
-    Wait(animTime * 450)
-end
-
-function tictakLeft(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.wall.tictakLeft)
-    Wait(animTime * 50)
-    disableCollision(playerPed)
-    Wait(animTime * 500)
-    enableCollision(playerPed)
-    Wait(animTime * 450)
-end
-
-function tictakRight(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.wall.tictakRight)
-    Wait(animTime * 50)
-    disableCollision(playerPed)
-    Wait(animTime * 500)
-    enableCollision(playerPed)
-    Wait(animTime * 450)
 end
 
 function ledgeJumpUp(playerPed, heightLevel)
@@ -602,7 +519,7 @@ RegisterCommand('+parkour', function()
     loadParkourAnimations()
 
     -- Get if there's object in front of the ped
-    local firstHit, lastHit = GetEntInFrontOfPlayer(playerPed)
+    local firstHit, lastHit, hitCoords = GetEntInFrontOfPlayer(playerPed)
 
     print('firstHit: ' .. tostring(firstHit))
     print('lastHit: ' .. tostring(lastHit))
@@ -612,9 +529,12 @@ RegisterCommand('+parkour', function()
             slide(playerPed)
         elseif lastHit ~= null then
             if lastHit <= HeightLevels.Medium then
-                kashVault(playerPed)
+                -- kashVault(playerPed)
+                kashVault2(playerPed, GetEntityCoords(playerPed), GetCoordsAfterEntity(playerPed, hitCoords))
             elseif lastHit <= HeightLevels.High then
-                reverseVault(playerPed, lastHit)
+                -- reverseVault(playerPed, lastHit)
+
+                reverseVault2(playerPed, GetCoordsAfterPlayer(playerPed))
             elseif lastHit < HeightLevels.Max then
                 ledgeJumpUp(playerPed, lastHit)
             elseif firstHit < HeightLevels.Low and lastHit >= HeightLevels.Max then
@@ -622,12 +542,16 @@ RegisterCommand('+parkour', function()
             end
         end
     else
-        local playerCoords = GetEntityCoords(playerPed)
-        local coords = exports.qbUtil:raycast()
-        turnHeading(playerPed, playerCoords, coords)
+        frontTwistFlip(playerPed)
 
-        -- frontTwistFlip(playerPed)
-        bigJump(playerPed, playerCoords, coords)
+        -- local playerCoords = GetEntityCoords(playerPed)
+        -- local coords = exports.qbUtil:raycast()
+        -- turnHeading(playerPed, playerCoords, coords)
+
+        -- slide2(playerPed, playerCoords, coords)
+        -- kashVault2(playerPed, playerCoords, coords)
+        -- bigJump2(playerPed, playerCoords, coords)
+        -- reverseVault2(playerPed, playerCoords, coords)
     end
 
     -- Unload all parkour animations
@@ -654,4 +578,8 @@ end, false)
 
 RegisterCommand('tpParkour5', function(_, _, _)
     SetEntityCoords(PlayerPedId(), -48.0, -39.0, 65.0, true, false, false, false)
+end, false)
+
+RegisterCommand('tpParkour6', function(_, _, _)
+    SetEntityCoords(PlayerPedId(), 1008.0, -1052.0, 35.0, true, false, false, false)
 end, false)
