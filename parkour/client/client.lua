@@ -30,7 +30,6 @@ local ParkourAnimations = {
         rollVault = { dictionary = ParkourDictionaries.two, name = 'roll_a_vault', },
         safetyVault = { dictionary = ParkourDictionaries.two, name = 'safety_l_vault', },
         slideVault = { dictionary = ParkourDictionaries.two, name = 'slide_r_vault', },
-        diveRollLeft = { dictionary = ParkourDictionaries.two, name = 'diveroll_l', },
     },
     slide = {
         slideNormal = { dictionary = ParkourDictionaries.one, name = 'slide', },
@@ -129,13 +128,13 @@ function GetEntInFrontOfPlayer(Ped)
     -- end
 end
 
-local MaxForwardDistance = 3.0
-function GetCoordsAfterEntity(Ped, hitCoords)
+local MaxForwardDistance = 3.5
+function GetDistanceAfterEntity(Ped, hitCoords)
     local heightLine = 1.1
-    local currentDistance = ForwardDistance + 0.5
+    local currentDistance = ForwardDistance
     local afterCoords
 
-    while currentDistance <= MaxForwardDistance do
+    while currentDistance <= MaxForwardDistance + 0.1 do
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, currentDistance, 0.0)
         local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z,
             CoB.x, CoB.y, CoB.z - heightLine, -1, Ped, 0) -- -1 = Everything
@@ -144,43 +143,20 @@ function GetCoordsAfterEntity(Ped, hitCoords)
             GetShapeTestResultIncludingMaterial(RayHandle)
 
         if hit == 1 then
-            local zDiff = hitCoords.z - afterCoords.z
-            if zDiff > 0.0 and zDiff < 1.0 then
-                afterCoords = afterCoords + GetEntityForwardVector(Ped) * 0.75
-                break;
+            print('z: ' .. tostring(hitCoords.z - afterCoords.z))
+            if hitCoords.z - afterCoords.z > 0.5 then
+                return currentDistance
             end
         else
             return nil
-            -- return GetOffsetFromEntityInWorldCoords(Ped, 0.0, currentDistance + 0.5, -0.5)
         end
 
-        currentDistance = currentDistance + 0.5
+        currentDistance = currentDistance + 0.50
 
         Wait(0)
     end
 
-    -- color = { r = 0, g = 255, b = 0, a = 200 }
-    -- while true do
-    --     local heightIndex = HeightLevels.Medium
-    --     local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, currentDistance, 0.0)
-    --     local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z,
-    --         CoB.x, CoB.y, CoB.z - heightLine, -1, Ped, 0) -- -1 = Everything
-
-    --     _, _, forwardCoords, _, _, _ =
-    --         GetShapeTestResultIncludingMaterial(RayHandle)
-
-    --     DrawLine(CoB.x, CoB.y, CoB.z, CoB.x, CoB.y, CoB.z - heightLine, color.r, color.g, color.b,
-    --         color.a)
-
-    --     if IsControlJustReleased(0, 38) then
-    --         print('forwardCoords: ' .. tostring(forwardCoords))
-    --         break
-    --     end
-
-    --     Wait(0)
-    -- end
-
-    return afterCoords
+    return currentDistance
 end
 
 function GetCoordsAfterPlayer(Ped)
@@ -314,7 +290,11 @@ function doAnimation(playerPed, animation, startTime)
 end
 
 function bigJump(playerPed, playerCoords, endCoords)
-    doAnim(ParkourAnimations.jump.bigJump, playerPed, playerCoords, endCoords, 0.20, 0.55)
+    doAnimAtCoords(ParkourAnimations.jump.bigJump, playerPed, playerCoords, endCoords, 0.20, 0.55)
+end
+
+function balanceJump(playerPed, playerCoords, endCoords)
+    doAnimAtCoords(ParkourAnimations.jump.balanceJump, playerPed, playerCoords, endCoords, 0.25, 0.35)
 end
 
 function frontTwistFlip(playerPed)
@@ -331,20 +311,47 @@ function monkeyVault(playerPed)
     local animTime = doAnimation(playerPed, ParkourAnimations.vault.monkeyVault)
     Wait(animTime * 100)
     disableCollision(playerPed)
-    Wait(animTime * 350)
+    Wait(animTime * 500)
     enableCollision(playerPed)
-    Wait(animTime * 550)
+    Wait(animTime * 400)
 end
 
-function kashVault(playerPed, playerCoords, endCoords)
+function jumpOverThree(playerPed)
+    local animTime = doAnimation(playerPed, ParkourAnimations.vault.jumpOverThree)
+    Wait(animTime * 100)
+    disableCollision(playerPed)
+    Wait(animTime * 400)
+    enableCollision(playerPed)
+    Wait(animTime * 500)
+end
+
+function safetyVault(playerPed)
+    local animTime = doAnimation(playerPed, ParkourAnimations.vault.safetyVault)
+    Wait(animTime * 100)
+    disableCollision(playerPed)
+    Wait(animTime * 600)
+    enableCollision(playerPed)
+    Wait(animTime * 300)
+end
+
+function slideVault(playerPed)
+    local animTime = doAnimation(playerPed, ParkourAnimations.vault.slideVault)
+    Wait(animTime * 100)
+    disableCollision(playerPed)
+    Wait(animTime * 600)
+    enableCollision(playerPed)
+    Wait(animTime * 300)
+end
+
+function kashVault(playerPed)
     local animTime = doAnimation(playerPed, ParkourAnimations.vault.kashVault)
     Wait(animTime * 100)
     disableCollision(playerPed)
-    Wait(animTime * 350)
+    Wait(animTime * 200)
+    ApplyForceToEntityCenterOfMass(playerPed, 1, 0.0, -12.0, 0.0, true, true, true, true)
+    Wait(animTime * 400)
     enableCollision(playerPed)
-    Wait(animTime * 550)
-
-    -- doAnimAtCoords(ParkourAnimations.vault.kashVault, playerPed, playerCoords, endCoords, 0.0, 0.45)
+    Wait(animTime * 300)
 end
 
 function rollVault(playerPed)
@@ -357,18 +364,17 @@ function rollVault(playerPed)
     Wait(animTime * 550)
 end
 
-function reverseVault(playerPed, heightLevel, endCoords)
+function reverseVault(playerPed, heightLevel)
     TaskClimb(playerPed, false)
 
     local heightBreak
-    if heightLevel < 1.1 then
-        print('here 1')
-        heightBreak = heightLevel / 2.5
+    if heightLevel < 0.7 then
+        heightBreak = heightLevel / 1.2
+    elseif heightLevel < 1.1 then
+        heightBreak = heightLevel / 2.4
     else
-        print('here 2')
         heightBreak = heightLevel + 0.2
     end
-    print(heightBreak)
 
     local originalCoords = GetEntityCoords(playerPed)
     local playerCoords = originalCoords
@@ -392,10 +398,6 @@ function reverseVault(playerPed, heightLevel, endCoords)
         Wait(animTime * 400)
         enableCollision(playerPed)
         Wait(animTime * 400)
-
-        -- doAnim(ParkourAnimations.vault.reverseVault, playerPed, playerCoords,
-        --     vec3(endCoords.x, endCoords.y, playerCoords.z - 1.0),
-        --     0.0, 0.35)
     end
 end
 
@@ -406,8 +408,6 @@ function slide(playerPed)
     Wait(animTime * 350)
     enableCollision(playerPed)
     Wait(animTime * 600)
-
-    -- doAnimAtCoords(ParkourAnimations.slide.slideNormal, playerPed, playerCoords, endCoords, 0.0, 0.55)
 end
 
 function wallFlip(playerPed)
@@ -491,18 +491,28 @@ RegisterCommand('+parkour', function()
         elseif lastHit ~= null then
             if lastHit <= HeightLevels.Medium then
                 local playerCoords = GetEntityCoords(playerPed)
+                print('hitZ diff: ' .. tostring(hitCoords.z - playerCoords.z))
                 if hitCoords.z - playerCoords.z < 0.1 then
-                    local afterHitCoords = GetCoordsAfterEntity(playerPed, hitCoords)
-                    if afterHitCoords == nil then
+                    local distance = GetDistanceAfterEntity(playerPed, hitCoords)
+                    if distance == nil then
                         monkeyVault(playerPed)
                     else
-                        kashVault(playerPed, playerCoords, afterHitCoords)
+                        print('distance: ' .. tostring(distance))
+                        if distance <= 1.5 then
+                            jumpOverThree(playerPed)
+                        elseif distance <= 2.0 then
+                            safetyVault(playerPed)
+                        elseif distance <= 3.5 then
+                            kashVault(playerPed)
+                        else
+                            slideVault(playerPed)
+                        end
                     end
                 else
                     rollVault(playerPed)
                 end
             elseif lastHit <= HeightLevels.High then
-                reverseVault(playerPed, lastHit, GetCoordsAfterPlayer(playerPed))
+                reverseVault(playerPed, lastHit)
             elseif lastHit < HeightLevels.Max then
                 ledgeJumpUp(playerPed, lastHit)
             elseif firstHit < HeightLevels.Low and lastHit >= HeightLevels.Max then
@@ -514,9 +524,12 @@ RegisterCommand('+parkour', function()
 
         -- local playerCoords = GetEntityCoords(playerPed)
         -- local coords = exports.qbUtil:raycast()
+        -- if type(coords) ~= 'vector3' then
+        --     coords = GetEntityCoords(coords)
+        -- end
         -- turnHeading(playerPed, playerCoords, coords)
 
-        -- slide2(playerPed, playerCoords, coords)
+        -- balanceJump(playerPed, playerCoords, coords)
     end
 
     -- Unload all parkour animations
@@ -550,5 +563,5 @@ RegisterCommand('tpParkour6', function(_, _, _)
 end, false)
 
 RegisterCommand('tpParkour7', function(_, _, _)
-    SetEntityCoords(PlayerPedId(), 893.0, 137.0, 27.0, true, false, false, false)
+    SetEntityCoords(PlayerPedId(), -893.0, -138.0, 38.0, true, false, false, false)
 end, false)
