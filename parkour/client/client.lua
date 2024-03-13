@@ -279,15 +279,6 @@ function doAnimAtCoords(animation, playerPed, playerCoords, endCoords, startOffs
     ClearPedTasks(playerPed)
 end
 
-function doAnimation(playerPed, animation, startTime)
-    startTime = startTime or 0.0
-
-    TaskPlayAnim(playerPed, animation.dictionary, animation.name,
-        8.0, 8.0, -1, AnimationFlags.ANIM_FLAG_NORMAL, startTime, false, false, false)
-
-    return GetAnimDuration(animation.dictionary, animation.name)
-end
-
 function bigJump(playerPed, playerCoords, endCoords)
     doAnimAtCoords(ParkourAnimations.jump.bigJump, playerPed, playerCoords, endCoords, 0.20, 0.55)
 end
@@ -296,69 +287,133 @@ function balanceJump(playerPed, playerCoords, endCoords)
     doAnimAtCoords(ParkourAnimations.jump.balanceJump, playerPed, playerCoords, endCoords, 0.25, 0.35)
 end
 
+function disableMovementControls()
+    DisableControlAction(0, 29, true)
+    DisableControlAction(0, 30, true)
+    DisableControlAction(0, 31, true)
+    DisableControlAction(0, 32, true)
+end
+
+function doAnimation(playerPed, animation, enableTime)
+    enableTime = enableTime or 0
+    flag = AnimationFlags.ANIM_FLAG_NORMAL
+
+    local animTime = GetAnimDuration(animation.dictionary, animation.name)
+
+    if enableTime > 0 then
+        flag = AnimationFlags.ANIM_FLAG_ENABLE_PLAYER_CONTROL
+
+        local disabled = true
+        CreateThread(function()
+            Wait(animTime * enableTime * 0.9)
+            disabled = false
+        end)
+        CreateThread(function()
+            while disabled do
+                Wait(0)
+                disableMovementControls()
+            end
+        end)
+    end
+
+    TaskPlayAnim(playerPed, animation.dictionary, animation.name,
+        8.0, 8.0, -1, flag, 0.0, false, false, false)
+
+    return animTime
+end
+
 function frontTwistFlip(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.jump.frontTwistFlip)
-    Wait(animTime * 250)
+    local disableCollisionTime = 250
+    local enableCollisionTime = 200
+    local animTime = doAnimation(playerPed, ParkourAnimations.jump.frontTwistFlip,
+        disableCollisionTime + enableCollisionTime)
+
+    Wait(animTime * disableCollisionTime)
     disableCollision(playerPed)
-    Wait(animTime * 200)
+    Wait(animTime * enableCollisionTime)
     enableCollision(playerPed)
-    Wait(animTime * 225)
+    Wait(animTime * 250)
     ClearPedTasks(playerPed)
 end
 
 function monkeyVault(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.vault.monkeyVault)
-    Wait(animTime * 100)
+    local disableCollisionTime = 100
+    local enableCollisionTime = 500
+    local animTime = doAnimation(playerPed, ParkourAnimations.vault.monkeyVault,
+        disableCollisionTime + enableCollisionTime)
+
+    Wait(animTime * disableCollisionTime)
     disableCollision(playerPed)
-    Wait(animTime * 500)
+    Wait(animTime * enableCollisionTime)
     enableCollision(playerPed)
     Wait(animTime * 400)
 end
 
 function jumpOverThree(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.vault.jumpOverThree)
-    Wait(animTime * 100)
+    local disableCollisionTime = 100
+    local enableCollisionTime = 400
+    local animTime = doAnimation(playerPed, ParkourAnimations.vault.jumpOverThree,
+        disableCollisionTime + enableCollisionTime)
+
+    Wait(animTime * disableCollisionTime)
     disableCollision(playerPed)
-    Wait(animTime * 400)
+    Wait(animTime * enableCollisionTime)
     enableCollision(playerPed)
     Wait(animTime * 500)
 end
 
 function safetyVault(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.vault.safetyVault)
-    Wait(animTime * 100)
+    local disableCollisionTime = 100
+    local enableCollisionTime = 600
+    local animTime = doAnimation(playerPed, ParkourAnimations.vault.safetyVault,
+        disableCollisionTime + enableCollisionTime)
+
+    Wait(animTime * disableCollisionTime)
     disableCollision(playerPed)
-    Wait(animTime * 600)
+    Wait(animTime * enableCollisionTime)
     enableCollision(playerPed)
     Wait(animTime * 300)
 end
 
 function slideVault(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.vault.slideVault)
-    Wait(animTime * 100)
+    local disableCollisionTime = 100
+    local enableCollisionTime = 600
+    local animTime = doAnimation(playerPed, ParkourAnimations.vault.slideVault,
+        disableCollisionTime + enableCollisionTime)
+
+    Wait(animTime * disableCollisionTime)
     disableCollision(playerPed)
-    Wait(animTime * 600)
+    Wait(animTime * enableCollisionTime)
     enableCollision(playerPed)
     Wait(animTime * 300)
 end
 
 function kashVault(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.vault.kashVault)
-    Wait(animTime * 100)
+    local disableCollisionTime = 100
+    local enableCollisionTime1 = 200
+    local enableCollisionTime2 = 400
+    local animTime = doAnimation(playerPed, ParkourAnimations.vault.kashVault,
+        disableCollisionTime + enableCollisionTime1 + enableCollisionTime2)
+
+    Wait(animTime * disableCollisionTime)
     disableCollision(playerPed)
-    Wait(animTime * 200)
+    Wait(animTime * enableCollisionTime1)
     ApplyForceToEntityCenterOfMass(playerPed, 1, 0.0, -12.0, 0.0, true, true, true, true)
-    Wait(animTime * 400)
+    Wait(animTime * enableCollisionTime2)
     enableCollision(playerPed)
     Wait(animTime * 300)
 end
 
 function rollVault(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.vault.rollVault)
+    local disableCollisionTime = 100
+    local enableCollisionTime = 400
+    local animTime = doAnimation(playerPed, ParkourAnimations.vault.rollVault,
+        disableCollisionTime + enableCollisionTime)
+
     ApplyForceToEntityCenterOfMass(playerPed, 1, 0.0, 0.0, 8.0, true, true, true, true)
-    Wait(animTime * 100)
+    Wait(animTime * disableCollisionTime)
     disableCollision(playerPed)
-    Wait(animTime * 400)
+    Wait(animTime * enableCollisionTime)
     enableCollision(playerPed)
     Wait(animTime * 500)
 end
@@ -382,20 +437,29 @@ function reverseVault(playerPed, heightLevel)
 
     if IsPedVaulting(playerPed) then
         SetEntityVelocity(playerPed, 0.0, 0.0, 0.0)
-        local animTime = doAnimation(playerPed, ParkourAnimations.vault.reverseVault)
-        Wait(animTime * 25)
+
+        local disableCollisionTime = 25
+        local enableCollisionTime = 525
+        local animTime = doAnimation(playerPed, ParkourAnimations.vault.reverseVault,
+            disableCollisionTime + enableCollisionTime)
+
+        Wait(animTime * disableCollisionTime)
         disableCollision(playerPed)
-        Wait(animTime * 525)
+        Wait(animTime * enableCollisionTime)
         enableCollision(playerPed)
         Wait(animTime * 450)
     end
 end
 
 function slide(playerPed)
-    local animTime = doAnimation(playerPed, ParkourAnimations.slide.slideNormal)
-    Wait(animTime * 50)
+    local disableCollisionTime = 50
+    local enableCollisionTime = 350
+    local animTime = doAnimation(playerPed, ParkourAnimations.slide.slideNormal,
+        disableCollisionTime + enableCollisionTime)
+
+    Wait(animTime * disableCollisionTime)
     disableCollision(playerPed)
-    Wait(animTime * 350)
+    Wait(animTime * enableCollisionTime)
     enableCollision(playerPed)
     Wait(animTime * 600)
 end
@@ -458,13 +522,18 @@ local isDoingParkour = false
 
 RegisterKeyMapping('+parkour', 'Parkour', 'keyboard', Config.Settings.parkourKeyBind)
 RegisterCommand('+parkour', function()
+    local playerPed = PlayerPedId()
+
+    -- if not IsPedSprinting(playerPed) then
+    --     return
+    -- end
+
     if isDoingParkour then
         return
     else
         isDoingParkour = true
     end
 
-    local playerPed = PlayerPedId()
 
     -- Load all parkour animations
     loadParkourAnimations()
