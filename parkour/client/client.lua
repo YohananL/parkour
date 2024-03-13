@@ -129,22 +129,21 @@ function GetEntInFrontOfPlayer(Ped)
 end
 
 local MaxForwardDistance = 3.5
-function GetDistanceAfterEntity(Ped, hitCoords)
+function GetDistanceAfterEntity(Ped, baseCoords)
     local heightLine = 1.1
     local currentDistance = ForwardDistance
-    local afterCoords
 
     while currentDistance <= MaxForwardDistance + 0.1 do
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, currentDistance, 0.0)
         local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z,
             CoB.x, CoB.y, CoB.z - heightLine, -1, Ped, 0) -- -1 = Everything
 
-        _, hit, afterCoords, _, _, _ =
+        local _, hit, hitCoords, _, _, _ =
             GetShapeTestResultIncludingMaterial(RayHandle)
 
         if hit == 1 then
-            print('z: ' .. tostring(hitCoords.z - afterCoords.z))
-            if hitCoords.z - afterCoords.z > 0.5 then
+            print(': ' .. tostring(baseCoords.z - hitCoords.z))
+            if baseCoords.z - hitCoords.z > 0.5 then
                 return currentDistance
             end
         else
@@ -359,30 +358,20 @@ function rollVault(playerPed)
     ApplyForceToEntityCenterOfMass(playerPed, 1, 0.0, 0.0, 8.0, true, true, true, true)
     Wait(animTime * 100)
     disableCollision(playerPed)
-    Wait(animTime * 350)
+    Wait(animTime * 400)
     enableCollision(playerPed)
-    Wait(animTime * 550)
+    Wait(animTime * 500)
 end
 
 function reverseVault(playerPed, heightLevel)
     TaskClimb(playerPed, false)
-
-    local heightBreak
-    if heightLevel < 0.7 then
-        heightBreak = heightLevel / 1.2
-    elseif heightLevel < 1.1 then
-        heightBreak = heightLevel / 2.4
-    else
-        heightBreak = heightLevel + 0.2
-    end
-
     local originalCoords = GetEntityCoords(playerPed)
     local playerCoords = originalCoords
     local counter = 0
     repeat
         playerCoords = GetEntityCoords(playerPed)
 
-        if playerCoords.z - originalCoords.z > heightBreak then
+        if playerCoords.z - originalCoords.z > heightLevel then
             break
         end
 
@@ -392,12 +381,13 @@ function reverseVault(playerPed, heightLevel)
     ClearPedTasksImmediately(playerPed)
 
     if IsPedVaulting(playerPed) then
+        SetEntityVelocity(playerPed, 0.0, 0.0, 0.0)
         local animTime = doAnimation(playerPed, ParkourAnimations.vault.reverseVault)
-        Wait(animTime * 200)
+        Wait(animTime * 50)
         disableCollision(playerPed)
-        Wait(animTime * 400)
+        Wait(animTime * 500)
         enableCollision(playerPed)
-        Wait(animTime * 400)
+        Wait(animTime * 450)
     end
 end
 
@@ -491,7 +481,7 @@ RegisterCommand('+parkour', function()
         elseif lastHit ~= null then
             if lastHit <= HeightLevels.Medium then
                 local playerCoords = GetEntityCoords(playerPed)
-                print('hitZ diff: ' .. tostring(hitCoords.z - playerCoords.z))
+                print('vault zDiff: ' .. tostring(hitCoords.z - playerCoords.z))
                 if hitCoords.z - playerCoords.z < 0.1 then
                     local distance = GetDistanceAfterEntity(playerPed, hitCoords)
                     if distance == nil then
