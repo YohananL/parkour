@@ -371,7 +371,7 @@ function reverseVault(playerPed, heightLevel)
     repeat
         playerCoords = GetEntityCoords(playerPed)
 
-        if playerCoords.z - originalCoords.z > heightLevel then
+        if playerCoords.z - originalCoords.z > heightLevel + 0.2 then
             break
         end
 
@@ -383,9 +383,9 @@ function reverseVault(playerPed, heightLevel)
     if IsPedVaulting(playerPed) then
         SetEntityVelocity(playerPed, 0.0, 0.0, 0.0)
         local animTime = doAnimation(playerPed, ParkourAnimations.vault.reverseVault)
-        Wait(animTime * 50)
+        Wait(animTime * 25)
         disableCollision(playerPed)
-        Wait(animTime * 500)
+        Wait(animTime * 525)
         enableCollision(playerPed)
         Wait(animTime * 450)
     end
