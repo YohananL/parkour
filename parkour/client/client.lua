@@ -120,32 +120,6 @@ function GetEntInFrontOfPlayer(Ped)
     return firstHit, lastHit, coords, ignoredMaterial
 end
 
-function CheckIfFloorIsHigher(baseCoords)
-    baseCoords = baseCoords + GetEntityForwardVector(PlayerPedId()) * 0.25
-    local lineHeight = 0.5
-    local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
-        baseCoords.x, baseCoords.y, baseCoords.z, -1, Ped, 0) -- -1 = Everything
-
-    local _, hit, _, _, _, _ =
-        GetShapeTestResultIncludingMaterial(RayHandle)
-
-    -- while true do
-    --     DrawLine(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
-    --         baseCoords.x, baseCoords.y, baseCoords.z,
-    --         Color.r, Color.g, Color.b, Color.a)
-    --     if IsControlJustReleased(0, 38) then
-    --         break
-    --     end
-    --     Wait(0)
-    -- end
-
-    if hit == 1 then
-        return true
-    else
-        return false
-    end
-end
-
 local MaxForwardDistance = 3.0
 function GetDistanceAfterCoord(baseCoords)
     local lineHeight = 1.2
@@ -183,6 +157,32 @@ function GetDistanceAfterCoord(baseCoords)
     end
 
     return currentDistance
+end
+
+function CheckIfFloor(baseCoords)
+    baseCoords = baseCoords + GetEntityForwardVector(PlayerPedId()) * 1.75
+    local lineHeight = 0.5
+    local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
+        baseCoords.x, baseCoords.y, baseCoords.z - lineHeight, -1, Ped, 0) -- -1 = Everything
+
+    local _, hit, _, _, _, _ =
+        GetShapeTestResultIncludingMaterial(RayHandle)
+
+    -- while true do
+    --     DrawLine(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
+    --         baseCoords.x, baseCoords.y, baseCoords.z,
+    --         Color.r, Color.g, Color.b, Color.a)
+    --     if IsControlJustReleased(0, 38) then
+    --         break
+    --     end
+    --     Wait(0)
+    -- end
+
+    if hit == 1 then
+        return true
+    else
+        return false
+    end
 end
 
 function CheckIfFence(baseCoords)
@@ -569,9 +569,9 @@ RegisterCommand('+parkour', function()
                     end
                 end
             elseif lastHit <= HeightLevels.High then
-                local isFloorHigher = CheckIfFloorIsHigher(hitCoords, lastHit)
-                print('isFloorHigher: ' .. tostring(isFloorHigher))
-                reverseVault(playerPed, lastHit, isFloorHigher)
+                local isFloor = CheckIfFloor(hitCoords, lastHit)
+                print('isFloor: ' .. tostring(isFloor))
+                reverseVault(playerPed, lastHit, isFloor)
             elseif lastHit < HeightLevels.Max then
                 ledgeJumpUp(playerPed, lastHit)
             elseif firstHit < HeightLevels.Low and lastHit >= HeightLevels.Max then
