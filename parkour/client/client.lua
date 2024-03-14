@@ -161,16 +161,16 @@ end
 
 function CheckIfFloor(baseCoords)
     baseCoords = baseCoords + GetEntityForwardVector(PlayerPedId()) * 1.75
-    local lineHeight = 0.5
+    local lineHeight = 1.5
     local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
-        baseCoords.x, baseCoords.y, baseCoords.z - lineHeight, -1, Ped, 0) -- -1 = Everything
+        baseCoords.x, baseCoords.y, baseCoords.z - lineHeight / 2, -1, Ped, 0) -- -1 = Everything
 
     local _, hit, _, _, _, _ =
         GetShapeTestResultIncludingMaterial(RayHandle)
 
     -- while true do
     --     DrawLine(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
-    --         baseCoords.x, baseCoords.y, baseCoords.z,
+    --         baseCoords.x, baseCoords.y, baseCoords.z - lineHeight / 2,
     --         Color.r, Color.g, Color.b, Color.a)
     --     if IsControlJustReleased(0, 38) then
     --         break
