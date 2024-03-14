@@ -59,7 +59,9 @@ local HeightLevels = {
     Max    = 2.7,
 }
 
-local ForwardDistance = 1.5
+local ForwardDistance = 2.5
+
+local Color = { r = 0, g = 255, b = 0, a = 200 }
 
 --- ============================
 ---          Functions
@@ -69,15 +71,23 @@ function GetEntInFrontOfPlayer(Ped)
     local heightIndex = HeightLevels.Min
     local firstHit = nil
     local lastHit = nil
-    local coords
+    local coords, ignoredMaterial
     while heightIndex <= HeightLevels.Max + 0.01 do
         local CoA = GetEntityCoords(Ped, true)
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, ForwardDistance, heightIndex)
         local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoA.x, CoA.y, CoB.z,
             CoB.x, CoB.y, CoB.z, -1, Ped, 0) -- -1 = Everything
 
-        local _, hit, hitCoords, _, _, _ =
+        local _, hit, hitCoords, _, materialHash, _ =
             GetShapeTestResultIncludingMaterial(RayHandle)
+
+        -- print('Material hash: ' .. tostring(materialHash))
+        -- print('Match: ' .. tostring(IgnoredMaterialHash[materialHash]))
+
+        if IgnoredMaterialHash[materialHash] then
+            ignoredMaterial = IgnoredMaterialHash[materialHash]
+            break
+        end
 
         if hit == 1 then
             if not firstHit then
@@ -99,9 +109,8 @@ function GetEntInFrontOfPlayer(Ped)
         Wait(0)
     end
 
-    return firstHit, lastHit, coords
+    return firstHit, lastHit, coords, ignoredMaterial
 
-    -- color = { r = 0, g = 255, b = 0, a = 200 }
     -- while true do
     --     local heightIndex = HeightLevels.Low
 
@@ -113,10 +122,10 @@ function GetEntInFrontOfPlayer(Ped)
     --     local _, hit, endCoords, surfaceNormal, materialHash, entityHit =
     --         GetShapeTestResultIncludingMaterial(RayHandle)
 
-    --     DrawLine(CoA.x, CoA.y, CoB.z, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
-    --         color.a)
-    --     DrawMarker(28, CoB.x, CoB.y, CoB.z, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.1, 0.1, 0.1, color.r,
-    --         color.g, color.b, color.a, false, true, 2, nil, nil, false, false)
+    --     DrawLine(CoA.x, CoA.y, CoB.z, CoB.x, CoB.y, CoB.z, Color.r, Color.g, Color.b,
+    --         Color.a)
+    --     DrawMarker(28, CoB.x, CoB.y, CoB.z, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.1, 0.1, 0.1, Color.r,
+    --         Color.g, Color.b, Color.a, false, true, 2, nil, nil, false, false)
 
 
     --     if IsControlJustReleased(0, 38) then
@@ -128,34 +137,90 @@ function GetEntInFrontOfPlayer(Ped)
     -- end
 end
 
+function GetHeightAfterCoord(Ped, baseHeight)
+    local currentHeight = baseHeight + 0.1
+    local CoA = GetEntityCoords(Ped, true)
+    local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, ForwardDistance + 1.5, currentHeight)
+    local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoA.x, CoA.y, CoB.z,
+        CoB.x, CoB.y, CoB.z, -1, Ped, 0) -- -1 = Everything
+
+    local _, hit, _, _, _, _ =
+        GetShapeTestResultIncludingMaterial(RayHandle)
+
+    if hit == 1 then
+        return currentHeight
+    else
+        return 0
+    end
+end
+
 local MaxForwardDistance = 3.5
-function GetDistanceAfterEntity(Ped, baseCoords)
-    local heightLine = 1.1
-    local currentDistance = ForwardDistance
+function GetDistanceAfterCoord(Ped, baseCoords)
+    local lineHeight = 1.2
+    local currentDistance = ForwardDistance - 1.0
 
     while currentDistance <= MaxForwardDistance + 0.1 do
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, currentDistance, 0.0)
-        local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z,
-            CoB.x, CoB.y, CoB.z - heightLine, -1, Ped, 0) -- -1 = Everything
+        local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z + lineHeight / 2,
+            CoB.x, CoB.y, CoB.z - lineHeight, -1, Ped, 0) -- -1 = Everything
 
         local _, hit, hitCoords, _, _, _ =
             GetShapeTestResultIncludingMaterial(RayHandle)
 
+        -- while true do
+        --     DrawLine(CoB.x, CoB.y, CoB.z + lineHeight / 2,
+        --         CoB.x, CoB.y, CoB.z - lineHeight,
+        --         Color.r, Color.g, Color.b, Color.a)
+
+        --     if IsControlJustReleased(0, 38) then
+        --         break
+        --     end
+
+        --     Wait(0)
+        -- end
+
         if hit == 1 then
-            print(': ' .. tostring(baseCoords.z - hitCoords.z))
-            if baseCoords.z - hitCoords.z > 0.5 then
+            print('forward zDiff: ' .. tostring(baseCoords.z - hitCoords.z))
+            if baseCoords.z - hitCoords.z > 0.45 then
                 return currentDistance
             end
         else
             return nil
         end
 
-        currentDistance = currentDistance + 0.50
+        currentDistance = currentDistance + 0.5
 
         Wait(0)
     end
 
     return currentDistance
+end
+
+function CheckIfFence(baseCoords)
+    baseCoords = baseCoords + GetEntityForwardVector(PlayerPedId()) * 0.5
+    local lineHeight = 0.6
+    local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
+        baseCoords.x, baseCoords.y, baseCoords.z - lineHeight, -1, 0, 0) -- -1 = Everything
+    local _, hit, _, _, _, _ =
+        GetShapeTestResultIncludingMaterial(RayHandle)
+
+    -- while true do
+    --     DrawLine(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
+    --         baseCoords.x, baseCoords.y, baseCoords.z - lineHeight,
+    --         Color.r, Color.g, Color.b, Color.a)
+
+    --     if IsControlJustReleased(0, 38) then
+    --         break
+    --     end
+
+    --     Wait(0)
+    -- end
+
+    if hit == 1 then
+        return false
+    else
+        return true
+    end
 end
 
 function GetCoordsAfterPlayer(Ped)
@@ -279,10 +344,6 @@ function doAnimAtCoords(animation, playerPed, playerCoords, endCoords, startOffs
     ClearPedTasks(playerPed)
 end
 
-function bigJump(playerPed, playerCoords, endCoords)
-    doAnimAtCoords(ParkourAnimations.jump.bigJump, playerPed, playerCoords, endCoords, 0.20, 0.55)
-end
-
 function balanceJump(playerPed, playerCoords, endCoords)
     doAnimAtCoords(ParkourAnimations.jump.balanceJump, playerPed, playerCoords, endCoords, 0.25, 0.35)
 end
@@ -404,13 +465,27 @@ function kashVault(playerPed)
     Wait(animTime * 300)
 end
 
+function jumpOverTwo(playerPed)
+    local disableCollisionTime = 150
+    local enableCollisionTime = 200
+    local animTime = doAnimation(playerPed, ParkourAnimations.vault.jumpOverTwo,
+        disableCollisionTime + enableCollisionTime + 300)
+
+    Wait(animTime * disableCollisionTime)
+    ApplyForceToEntityCenterOfMass(playerPed, 1, 0.0, 0.0, 2.5, true, true, true, true)
+    disableCollision(playerPed)
+    Wait(animTime * enableCollisionTime)
+    enableCollision(playerPed)
+    Wait(animTime * 650)
+end
+
 function rollVault(playerPed)
     local disableCollisionTime = 100
     local enableCollisionTime = 400
     local animTime = doAnimation(playerPed, ParkourAnimations.vault.rollVault,
         disableCollisionTime + enableCollisionTime)
 
-    ApplyForceToEntityCenterOfMass(playerPed, 1, 0.0, 0.0, 8.0, true, true, true, true)
+    ApplyForceToEntityCenterOfMass(playerPed, 1, 0.0, 0.0, 9.0, true, true, true, true)
     Wait(animTime * disableCollisionTime)
     disableCollision(playerPed)
     Wait(animTime * enableCollisionTime)
@@ -418,36 +493,44 @@ function rollVault(playerPed)
     Wait(animTime * 500)
 end
 
-function reverseVault(playerPed, heightLevel)
+function reverseVault(playerPed, heightLevel, heightAfterObstacle)
     TaskClimb(playerPed, false)
     local originalCoords = GetEntityCoords(playerPed)
     local playerCoords = originalCoords
     local counter = 0
+
+    local heightOffset = 0.2
+    if heightAfterObstacle > 0 then
+        heightOffset = 0.4
+    end
+
     repeat
         playerCoords = GetEntityCoords(playerPed)
-
-        if playerCoords.z - originalCoords.z > heightLevel + 0.2 then
+        if playerCoords.z - originalCoords.z > heightLevel + heightOffset then
             break
         end
-
         counter = counter + 1
         Wait(0)
     until counter > 200
     ClearPedTasksImmediately(playerPed)
 
     if IsPedVaulting(playerPed) then
-        SetEntityVelocity(playerPed, 0.0, 0.0, 0.0)
+        local disableCollisionTime = 50
+        local enableCollisionTime = 600
+        if heightAfterObstacle > 0 then
+            disableCollisionTime = 0
+            enableCollisionTime = 250
+        end
 
-        local disableCollisionTime = 25
-        local enableCollisionTime = 525
         local animTime = doAnimation(playerPed, ParkourAnimations.vault.reverseVault,
             disableCollisionTime + enableCollisionTime)
 
+        SetEntityVelocity(playerPed, 0.0, 0.0, 0.0)
         Wait(animTime * disableCollisionTime)
         disableCollision(playerPed)
         Wait(animTime * enableCollisionTime)
         enableCollision(playerPed)
-        Wait(animTime * 450)
+        Wait(animTime * (1000 - (disableCollisionTime + enableCollisionTime)))
     end
 end
 
@@ -534,15 +617,19 @@ RegisterCommand('+parkour', function()
         isDoingParkour = true
     end
 
-
-    -- Load all parkour animations
-    loadParkourAnimations()
-
     -- Get if there's object in front of the ped
-    local firstHit, lastHit, hitCoords = GetEntInFrontOfPlayer(playerPed)
+    local firstHit, lastHit, hitCoords, ignoredMaterial = GetEntInFrontOfPlayer(playerPed)
+
+    if ignoredMaterial then
+        isDoingParkour = false
+        return
+    end
 
     print('firstHit: ' .. tostring(firstHit))
     print('lastHit: ' .. tostring(lastHit))
+
+    -- Load all parkour animations
+    loadParkourAnimations()
 
     if firstHit ~= nil then
         if firstHit > HeightLevels.Low and firstHit <= HeightLevels.Medium + 0.1 then
@@ -550,13 +637,14 @@ RegisterCommand('+parkour', function()
         elseif lastHit ~= null then
             if lastHit <= HeightLevels.Medium then
                 local playerCoords = GetEntityCoords(playerPed)
-                print('vault zDiff: ' .. tostring(hitCoords.z - playerCoords.z))
-                if hitCoords.z - playerCoords.z < 0.1 then
-                    local distance = GetDistanceAfterEntity(playerPed, hitCoords)
+                local obstacleHeightDiff = hitCoords.z - playerCoords.z
+                print('obstacleHeightDiff: ' .. tostring(obstacleHeightDiff))
+                if obstacleHeightDiff < 0.1 then
+                    local distance = GetDistanceAfterCoord(playerPed, hitCoords)
                     if distance == nil then
                         monkeyVault(playerPed)
                     else
-                        print('distance: ' .. tostring(distance))
+                        print('vault distance: ' .. tostring(distance))
                         if distance <= 1.5 then
                             jumpOverThree(playerPed)
                         elseif distance <= 2.0 then
@@ -568,10 +656,17 @@ RegisterCommand('+parkour', function()
                         end
                     end
                 else
-                    rollVault(playerPed)
+                    local isFence = CheckIfFence(hitCoords)
+                    print('isFence: ' .. tostring(isFence))
+                    if isFence then
+                        jumpOverTwo(playerPed)
+                    else
+                        rollVault(playerPed)
+                    end
                 end
             elseif lastHit <= HeightLevels.High then
-                reverseVault(playerPed, lastHit)
+                local heightAfterObstacle = GetHeightAfterCoord(playerPed, lastHit)
+                reverseVault(playerPed, lastHit, heightAfterObstacle)
             elseif lastHit < HeightLevels.Max then
                 ledgeJumpUp(playerPed, lastHit)
             elseif firstHit < HeightLevels.Low and lastHit >= HeightLevels.Max then
@@ -623,4 +718,8 @@ end, false)
 
 RegisterCommand('tpParkour7', function(_, _, _)
     SetEntityCoords(PlayerPedId(), -893.0, -138.0, 38.0, true, false, false, false)
+end, false)
+
+RegisterCommand('tpParkour8', function(_, _, _)
+    SetEntityCoords(PlayerPedId(), 1060.0, -270.0, 50.0, true, false, false, false)
 end, false)
