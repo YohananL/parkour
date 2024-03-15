@@ -61,6 +61,8 @@ local HeightLevels = {
 
 local ForwardDistance = 2.0
 
+local TraceFlag = 1 | 2 | 4 | 16 -- World | Vehicles | PedSimpleCollision | Objects
+
 local Color = { r = 0, g = 255, b = 0, a = 200 }
 
 --- ============================
@@ -76,18 +78,9 @@ function GetEntInFrontOfPlayer(Ped)
         local CoA = GetEntityCoords(Ped, true)
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, ForwardDistance, heightIndex)
         local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoA.x, CoA.y, CoB.z,
-            CoB.x, CoB.y, CoB.z, -1, Ped, 0) -- -1 = Everything
+            CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
 
-        local _, hit, hitCoords, _, materialHash, _ =
-            GetShapeTestResultIncludingMaterial(RayHandle)
-
-        -- print('Material hash: ' .. tostring(materialHash))
-        -- print('Match: ' .. tostring(IgnoredMaterialHash[materialHash]))
-
-        if IgnoredMaterialHash[materialHash] then
-            ignoredMaterial = IgnoredMaterialHash[materialHash]
-            break
-        end
+        local _, hit, hitCoords, _, _ = GetShapeTestResult(RayHandle)
 
         -- while true do
         --     DrawLine(CoA.x, CoA.y, CoB.z, CoB.x, CoB.y, CoB.z, Color.r, Color.g, Color.b, Color.a)
@@ -133,10 +126,9 @@ function GetDistanceAfterCoord(baseCoords)
         currentDistance = currentDistance + forwardMultiplier
         baseCoords = baseCoords + GetEntityForwardVector(PlayerPedId()) * forwardMultiplier
         local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(baseCoords.x, baseCoords.y,
-            baseCoords.z + lineHeight / 2, baseCoords.x, baseCoords.y, baseCoords.z - lineHeight, -1, 0, 0) -- -1 = Everything
+            baseCoords.z + lineHeight / 2, baseCoords.x, baseCoords.y, baseCoords.z - lineHeight, TraceFlag, 0, 0)
 
-        local _, hit, hitCoords, _, _, _ =
-            GetShapeTestResultIncludingMaterial(RayHandle)
+        local _, hit, hitCoords, _, _ = GetShapeTestResult(RayHandle)
 
         -- while true do
         --     DrawLine(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight / 2,
@@ -167,10 +159,9 @@ function CheckIfFloor(baseCoords)
     baseCoords = baseCoords + GetEntityForwardVector(PlayerPedId()) * 2.25
     local lineHeight = 1.5
     local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
-        baseCoords.x, baseCoords.y, baseCoords.z - lineHeight / 2, -1, Ped, 0) -- -1 = Everything
+        baseCoords.x, baseCoords.y, baseCoords.z - lineHeight / 2, TraceFlag, Ped, 0)
 
-    local _, hit, _, _, _, _ =
-        GetShapeTestResultIncludingMaterial(RayHandle)
+    local _, hit, _, _, _, _ = GetShapeTestResult(RayHandle)
 
     -- while true do
     --     DrawLine(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
@@ -193,9 +184,8 @@ function CheckIfFence(baseCoords)
     baseCoords = baseCoords + GetEntityForwardVector(PlayerPedId()) * 0.5
     local lineHeight = 0.6
     local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
-        baseCoords.x, baseCoords.y, baseCoords.z - lineHeight, -1, 0, 0) -- -1 = Everything
-    local _, hit, _, _, _, _ =
-        GetShapeTestResultIncludingMaterial(RayHandle)
+        baseCoords.x, baseCoords.y, baseCoords.z - lineHeight, TraceFlag, 0, 0)
+    local _, hit, _, _, _ = GetShapeTestResult(RayHandle)
 
     -- while true do
     --     DrawLine(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
@@ -219,10 +209,9 @@ function GetCoordsAfterPlayer(Ped)
     local currentDistance = ForwardDistance + 1.5
     local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, currentDistance, HeightLevels.High)
     local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z,
-        CoB.x, CoB.y, CoB.z - heightLine, -1, Ped, 0) -- -1 = Everything
+        CoB.x, CoB.y, CoB.z - heightLine, TraceFlag, Ped, 0)
 
-    local _, _, forwardCoords, _, _, _ =
-        GetShapeTestResultIncludingMaterial(RayHandle)
+    local _, _, forwardCoords, _, _ = GetShapeTestResult(RayHandle)
 
     return forwardCoords
 end
@@ -526,12 +515,7 @@ RegisterCommand('+parkour', function()
     end
 
     -- Get if there's object in front of the ped
-    local firstHit, lastHit, hitCoords, ignoredMaterial = GetEntInFrontOfPlayer(playerPed)
-
-    if ignoredMaterial then
-        isDoingParkour = false
-        return
-    end
+    local firstHit, lastHit, hitCoords, _ = GetEntInFrontOfPlayer(playerPed)
 
     print('firstHit: ' .. tostring(firstHit))
     print('lastHit: ' .. tostring(lastHit))
@@ -635,4 +619,12 @@ end, false)
 
 RegisterCommand('tpParkour9', function(_, _, _)
     SetEntityCoords(PlayerPedId(), 1144.0, -276.0, 69.0, true, false, false, false)
+end, false)
+
+RegisterCommand('tpParkour10', function(_, _, _)
+    SetEntityCoords(PlayerPedId(), 1144.0, -276.0, 69.0, true, false, false, false)
+end, false)
+
+RegisterCommand('tpParkour11', function(_, _, _)
+    SetEntityCoords(PlayerPedId(), 668.0, -2065.0, 9.0, true, false, false, false)
 end, false)
