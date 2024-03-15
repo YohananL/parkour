@@ -112,7 +112,11 @@ function GetEntInFrontOfPlayer(Ped)
             end
         end
 
-        heightIndex = heightIndex + 0.1
+        if heightIndex >= HeightLevels.High - 0.01 then
+            heightIndex = heightIndex + 0.1
+        else
+            heightIndex = heightIndex + 0.2
+        end
 
         Wait(0)
     end
