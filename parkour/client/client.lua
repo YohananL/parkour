@@ -164,7 +164,7 @@ function GetDistanceAfterCoord(baseCoords)
 end
 
 function CheckIfFloor(baseCoords)
-    baseCoords = baseCoords + GetEntityForwardVector(PlayerPedId()) * 1.75
+    baseCoords = baseCoords + GetEntityForwardVector(PlayerPedId()) * 2.25
     local lineHeight = 1.5
     local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
         baseCoords.x, baseCoords.y, baseCoords.z - lineHeight / 2, -1, Ped, 0) -- -1 = Everything
