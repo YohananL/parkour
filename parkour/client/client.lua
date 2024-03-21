@@ -49,6 +49,9 @@ local ParkourAnimations = {
         ledgeMoveRight = { dictionary = ParkourDictionaries.two, name = 'ledge_move_r', },
         ledgeJumpUp = { dictionary = ParkourDictionaries.two, name = 'ledge_jump_up_power', },
     },
+    land = {
+        roll = { dictionary = 'move_fall', name = 'land_roll' }
+    }
 }
 
 local HeightLevels = {
@@ -66,7 +69,7 @@ local TraceFlag = 1 | 2 | 4 | 16 -- World | Vehicles | PedSimpleCollision | Obje
 local Color = { r = 0, g = 255, b = 0, a = 200 }
 
 --- ============================
----          Functions
+---           Helpers
 --- ============================
 
 function GetEntInFrontOfPlayer(Ped)
@@ -77,8 +80,7 @@ function GetEntInFrontOfPlayer(Ped)
     while heightIndex <= HeightLevels.Max + 0.01 do
         local CoA = GetEntityCoords(Ped, true)
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, ForwardDistance, heightIndex)
-        local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoA.x, CoA.y, CoB.z,
-            CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
+        local RayHandle = StartShapeTestRay(CoA.x, CoA.y, CoB.z, CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
 
         local _, hit, hitCoords, _, _ = GetShapeTestResult(RayHandle)
 
@@ -125,8 +127,8 @@ function GetDistanceAfterCoord(baseCoords)
     while currentDistance <= MaxForwardDistance + 0.1 do
         currentDistance = currentDistance + forwardMultiplier
         baseCoords = baseCoords + GetEntityForwardVector(PlayerPedId()) * forwardMultiplier
-        local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(baseCoords.x, baseCoords.y,
-            baseCoords.z + lineHeight / 2, baseCoords.x, baseCoords.y, baseCoords.z - lineHeight, TraceFlag, 0, 0)
+        local RayHandle = StartShapeTestRay(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight / 2,
+            baseCoords.x, baseCoords.y, baseCoords.z - lineHeight, TraceFlag, 0, 0)
 
         local _, hit, hitCoords, _, _ = GetShapeTestResult(RayHandle)
 
@@ -158,7 +160,7 @@ end
 function CheckIfFloor(baseCoords)
     baseCoords = baseCoords + GetEntityForwardVector(PlayerPedId()) * 2.25
     local lineHeight = 1.5
-    local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
+    local RayHandle = StartShapeTestRay(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
         baseCoords.x, baseCoords.y, baseCoords.z - lineHeight / 2, TraceFlag, Ped, 0)
 
     local _, hit, _, _, _, _ = GetShapeTestResult(RayHandle)
@@ -181,9 +183,10 @@ function CheckIfFloor(baseCoords)
 end
 
 function CheckIfFence(baseCoords)
-    baseCoords = baseCoords + GetEntityForwardVector(PlayerPedId()) * 0.5
+    local fenceDistance = 0.6
+    baseCoords = baseCoords + GetEntityForwardVector(PlayerPedId()) * fenceDistance
     local lineHeight = 0.6
-    local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
+    local RayHandle = StartShapeTestRay(baseCoords.x, baseCoords.y, baseCoords.z + lineHeight,
         baseCoords.x, baseCoords.y, baseCoords.z - lineHeight, TraceFlag, 0, 0)
     local _, hit, _, _, _ = GetShapeTestResult(RayHandle)
 
@@ -204,17 +207,9 @@ function CheckIfFence(baseCoords)
     end
 end
 
-function GetCoordsAfterPlayer(Ped)
-    local heightLine = 5
-    local currentDistance = ForwardDistance + 1.5
-    local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, currentDistance, HeightLevels.High)
-    local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z,
-        CoB.x, CoB.y, CoB.z - heightLine, TraceFlag, Ped, 0)
-
-    local _, _, forwardCoords, _, _ = GetShapeTestResult(RayHandle)
-
-    return forwardCoords
-end
+--- ============================
+---          Animations
+--- ============================
 
 function requestAnimation(dictionary)
     RequestAnimDict(dictionary)
@@ -283,6 +278,10 @@ function doAnimation(playerPed, animation, enableTime)
 
     return animTime
 end
+
+--- ============================
+---          Functions
+--- ============================
 
 function frontTwistFlip(playerPed)
     local disableCollisionTime = 250
@@ -353,7 +352,7 @@ end
 function kashVault(playerPed)
     local disableCollisionTime = 100
     local enableCollisionTime1 = 200
-    local enableCollisionTime2 = 400
+    local enableCollisionTime2 = 500
     local animTime = doAnimation(playerPed, ParkourAnimations.vault.kashVault,
         disableCollisionTime + enableCollisionTime1 + enableCollisionTime2)
 
@@ -364,7 +363,7 @@ function kashVault(playerPed)
     ApplyForceToEntityCenterOfMass(playerPed, 1, 0.0, -9.0, -0.5, true, true, true, true)
     Wait(animTime * enableCollisionTime2)
     enableCollision(playerPed)
-    Wait(animTime * 300)
+    Wait(animTime * 200)
 end
 
 function jumpOverTwo(playerPed)
@@ -378,7 +377,7 @@ function jumpOverTwo(playerPed)
     disableCollision(playerPed)
     Wait(animTime * enableCollisionTime)
     enableCollision(playerPed)
-    Wait(animTime * 650)
+    Wait(animTime * 325)
 end
 
 function rollVault(playerPed)
@@ -393,6 +392,23 @@ function rollVault(playerPed)
     Wait(animTime * enableCollisionTime)
     enableCollision(playerPed)
     Wait(animTime * 500)
+end
+
+function rollIfFallingFromHeight(playerPed)
+    if GetEntityHeightAboveGround(playerPed) > 1.1 then
+        while GetEntityHeightAboveGround(playerPed) > 1.5 do
+            Wait(0)
+        end
+
+        local animTime = doAnimation(playerPed, ParkourAnimations.land.roll, 1.0)
+        Wait(animTime * 350)
+
+        -- ClearPedTasks(playerPed)
+        -- ForcePedMotionState(playerPed, -530524, false, 0, false)
+        -- ForcePedMotionState(playerPed, -668482597, false, 0, false)
+
+        StopAnimTask(playerPed, ParkourAnimations.land.roll.dictionary, ParkourAnimations.land.roll.name, 3.5)
+    end
 end
 
 function reverseVault(playerPed, heightLevel, isFloorHigher)
@@ -524,7 +540,7 @@ RegisterCommand('+parkour', function()
     loadParkourAnimations()
 
     if firstHit ~= nil then
-        if firstHit > HeightLevels.Low and firstHit <= HeightLevels.Medium + 0.1 then
+        if firstHit > HeightLevels.Low and firstHit <= HeightLevels.Medium + 0.2 then
             slide(playerPed)
         elseif lastHit ~= null then
             if lastHit <= HeightLevels.Medium then
@@ -556,6 +572,8 @@ RegisterCommand('+parkour', function()
                         rollVault(playerPed)
                     end
                 end
+
+                rollIfFallingFromHeight(playerPed)
             elseif lastHit <= HeightLevels.High then
                 local isFloor = CheckIfFloor(hitCoords, lastHit)
                 print('isFloor: ' .. tostring(isFloor))
@@ -568,6 +586,7 @@ RegisterCommand('+parkour', function()
         end
     else
         frontTwistFlip(playerPed)
+        rollIfFallingFromHeight(playerPed)
 
         -- local playerCoords = GetEntityCoords(playerPed)
         -- local coords = exports.qbUtil:raycast()
